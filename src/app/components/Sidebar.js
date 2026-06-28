@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "./AuthProvider";
+import { signOut } from "next-auth/react";
 
 const navItems = [
   { href: "/", label: "Dashboard", icon: "🏠" },
@@ -66,7 +67,7 @@ export default function Sidebar() {
               </div>
             </div>
             <button
-              onClick={logout}
+              onClick={() => signOut()}
               className="mt-3 w-full text-xs text-slate-500 hover:text-red-400 transition-colors text-left px-1"
             >
               ← Sign out
