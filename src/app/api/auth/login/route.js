@@ -4,7 +4,7 @@ import { prisma } from "@/app/lib/prisma";
 import { verifyPassword, createSession } from "@/app/lib/auth";
 
 const loginSchema = z.object({
-  email: z.email("Invalid email address"),
+  email: z.string().email("Invalid email"),
   password: z.string().min(1, "Password is required"),
 });
 
@@ -15,7 +15,7 @@ export async function POST(request) {
 
     if (!parsed.success) {
       return NextResponse.json(
-        { error: "Validation failed", details: parsed.error.issues },
+        { message: "Invalid email or password" },
         { status: 400 }
       );
     }
@@ -28,37 +28,34 @@ export async function POST(request) {
 
     if (!user) {
       return NextResponse.json(
-        { error: "Invalid email or password" },
+        { message: "Invalid email or password" },
         { status: 401 }
       );
     }
 
-    const isValid = await verifyPassword(password, user.password);
-
-    if (!isValid) {
+    const valid = await verifyPassword(password, user.password);
+    if (!valid) {
       return NextResponse.json(
-        { error: "Invalid email or password" },
+        { message: "Invalid email or password" },
         { status: 401 }
       );
     }
 
     await createSession(user.id);
 
-    return NextResponse.json(
-      {
-        user: {
-          id: user.id,
-          name: user.name,
-          email: user.email,
-          role: user.role,
-        },
+    return NextResponse.json({
+      message: "Login successful",
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
       },
-      { status: 200 }
-    );
+    });
   } catch (error) {
-    console.error("[Login Error]", error);
+    console.error("LOGIN_ERROR:", error);
     return NextResponse.json(
-      { error: "Internal server error" },
+      { message: "Something went wrong" },
       { status: 500 }
     );
   }

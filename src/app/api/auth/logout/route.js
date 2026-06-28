@@ -4,16 +4,9 @@ import { deleteSession } from "@/app/lib/auth";
 export async function POST() {
   try {
     await deleteSession();
-
-    return NextResponse.json(
-      { message: "Logged out successfully" },
-      { status: 200 }
-    );
+    return NextResponse.json({ message: "Logged out successfully" });
   } catch (error) {
-    console.error("[Logout Error]", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    console.error("LOGOUT_ERROR:", error);
+    return NextResponse.json({ message: "Logged out" });
   }
 }

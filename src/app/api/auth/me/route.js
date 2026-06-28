@@ -7,17 +7,17 @@ export async function GET() {
 
     if (!user) {
       return NextResponse.json(
-        { error: "Not authenticated" },
+        { message: "Not authenticated" },
         { status: 401 }
       );
     }
 
-    return NextResponse.json({ user }, { status: 200 });
+    return NextResponse.json({ user });
   } catch (error) {
-    console.error("[Me Error]", error);
+    console.error("AUTH_ME_ERROR:", error);
     return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
+      { message: "Not authenticated" },
+      { status: 401 }
     );
   }
 }

@@ -2,18 +2,12 @@ import { NextResponse } from "next/server";
 import { z } from "zod/v4";
 import { prisma } from "@/app/lib/prisma";
 import { getCurrentUser } from "@/app/lib/auth";
-import { sendBugAssignedEmail } from "@/app/lib/email";
 
-const bugSchema = z.object({
+const reqSchema = z.object({
   projectId: z.string().min(1),
-  module: z.string().min(1),
   title: z.string().min(1),
-  description: z.string().optional().default(""),
-  stepsToReproduce: z.string().min(1),
-  expectedResult: z.string().min(1),
-  actualResult: z.string().min(1),
-  severity: z.enum(["MINOR", "MAJOR", "CRITICAL", "BLOCKER"]).optional().default("MAJOR"),
-  priority: z.enum(["LOW", "MEDIUM", "HIGH", "URGENT"]).optional().default("HIGH"),
+  description: z.string().min(1),
+  priority: z.enum(["LOW", "MEDIUM", "HIGH", "URGENT"]).optional().default("MEDIUM"),
   assignedToId: z.string().optional(),
   screenshotUrl: z.string().optional().default(""),
 });
@@ -23,9 +17,7 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const status = searchParams.get("status");
     const priority = searchParams.get("priority");
-    const severity = searchParams.get("severity");
     const projectId = searchParams.get("projectId");
-    const assignedToId = searchParams.get("assignedToId");
     const search = searchParams.get("search");
     const page = parseInt(searchParams.get("page") || "1");
     const limit = parseInt(searchParams.get("limit") || "20");
@@ -33,35 +25,33 @@ export async function GET(request) {
     const where = {};
     if (status) where.status = status;
     if (priority) where.priority = priority;
-    if (severity) where.severity = severity;
     if (projectId) where.projectId = projectId;
-    if (assignedToId) where.assignedToId = assignedToId;
     if (search) where.title = { contains: search, mode: "insensitive" };
 
-    const [bugs, total] = await Promise.all([
-      prisma.bug.findMany({
+    const [requirements, total] = await Promise.all([
+      prisma.requirement.findMany({
         where,
         include: {
           project: { select: { id: true, name: true } },
           assignedTo: { select: { id: true, name: true, email: true } },
-          reportedBy: { select: { id: true, name: true } },
+          createdBy: { select: { id: true, name: true } },
         },
         orderBy: { createdAt: "desc" },
         skip: (page - 1) * limit,
         take: limit,
       }),
-      prisma.bug.count({ where }),
+      prisma.requirement.count({ where }),
     ]);
 
     return NextResponse.json({
-      bugs,
+      requirements,
       total,
       page,
       totalPages: Math.ceil(total / limit),
     });
   } catch (error) {
-    console.error("GET_BUGS_ERROR:", error);
-    return NextResponse.json({ message: "Failed to fetch bugs" }, { status: 500 });
+    console.error("GET_REQUIREMENTS_ERROR:", error);
+    return NextResponse.json({ message: "Failed to fetch requirements" }, { status: 500 });
   }
 }
 
@@ -73,7 +63,7 @@ export async function POST(request) {
     }
 
     const body = await request.json();
-    const parsed = bugSchema.safeParse(body);
+    const parsed = reqSchema.safeParse(body);
 
     if (!parsed.success) {
       return NextResponse.json(
@@ -84,56 +74,38 @@ export async function POST(request) {
 
     const data = parsed.data;
 
-    // Auto-generate bugId
-    const count = await prisma.bug.count();
-    const bugId = `BUG-${String(count + 1).padStart(3, "0")}`;
+    const count = await prisma.requirement.count();
+    const reqId = `REQ-${String(count + 1).padStart(3, "0")}`;
 
-    const bug = await prisma.bug.create({
+    const requirement = await prisma.requirement.create({
       data: {
-        bugId,
-        module: data.module,
+        reqId,
         title: data.title,
         description: data.description,
-        stepsToReproduce: data.stepsToReproduce,
-        expectedResult: data.expectedResult,
-        actualResult: data.actualResult,
-        severity: data.severity,
         priority: data.priority,
-        status: data.assignedToId ? "ASSIGNED" : "OPEN",
+        status: "PENDING",
         screenshotUrl: data.screenshotUrl,
         projectId: data.projectId,
         assignedToId: data.assignedToId || null,
-        reportedById: user.id,
+        createdById: user.id,
       },
       include: {
         project: { select: { name: true } },
-        assignedTo: { select: { name: true, email: true } },
+        assignedTo: { select: { name: true } },
       },
     });
 
-    // Activity log
     await prisma.activity.create({
       data: {
-        action: "created this bug",
+        action: "created this requirement",
         userId: user.id,
-        bugId: bug.id,
+        requirementId: requirement.id,
       },
     });
 
-    // Email notification
-    if (bug.assignedTo) {
-      await sendBugAssignedEmail({
-        to: bug.assignedTo.email,
-        bugTitle: bug.title,
-        bugId: bug.bugId,
-        projectName: bug.project.name,
-        assignedBy: user.name,
-      });
-    }
-
-    return NextResponse.json({ message: "Bug created", bug }, { status: 201 });
+    return NextResponse.json({ message: "Requirement created", requirement }, { status: 201 });
   } catch (error) {
-    console.error("CREATE_BUG_ERROR:", error);
-    return NextResponse.json({ message: "Failed to create bug" }, { status: 500 });
+    console.error("CREATE_REQUIREMENT_ERROR:", error);
+    return NextResponse.json({ message: "Failed to create requirement" }, { status: 500 });
   }
 }

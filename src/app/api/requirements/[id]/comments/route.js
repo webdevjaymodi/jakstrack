@@ -6,16 +6,14 @@ import { sendNewCommentEmail } from "@/app/lib/email";
 export async function GET(request, { params }) {
   try {
     const { id } = await params;
-
     const comments = await prisma.comment.findMany({
-      where: { bugId: id },
+      where: { requirementId: id },
       include: { author: { select: { id: true, name: true, email: true } } },
       orderBy: { createdAt: "asc" },
     });
-
     return NextResponse.json({ comments });
   } catch (error) {
-    console.error("GET_BUG_COMMENTS_ERROR:", error);
+    console.error("GET_REQ_COMMENTS_ERROR:", error);
     return NextResponse.json({ message: "Failed to fetch comments" }, { status: 500 });
   }
 }
@@ -35,30 +33,24 @@ export async function POST(request, { params }) {
     }
 
     const comment = await prisma.comment.create({
-      data: {
-        content: body.content.trim(),
-        authorId: user.id,
-        bugId: id,
-      },
+      data: { content: body.content.trim(), authorId: user.id, requirementId: id },
       include: { author: { select: { id: true, name: true, email: true } } },
     });
 
-    // Activity log
     await prisma.activity.create({
-      data: { action: "added a comment", userId: user.id, bugId: id },
+      data: { action: "added a comment", userId: user.id, requirementId: id },
     });
 
-    // Email notification to assignee
-    const bug = await prisma.bug.findUnique({
+    const req = await prisma.requirement.findUnique({
       where: { id },
       include: { assignedTo: { select: { email: true } } },
     });
 
-    if (bug?.assignedTo && bug.assignedTo.email !== user.email) {
+    if (req?.assignedTo && req.assignedTo.email !== user.email) {
       await sendNewCommentEmail({
-        to: bug.assignedTo.email,
-        title: bug.title,
-        itemId: bug.bugId,
+        to: req.assignedTo.email,
+        title: req.title,
+        itemId: req.reqId,
         commentBy: user.name,
         commentPreview: body.content.trim().substring(0, 100),
       });
@@ -66,7 +58,7 @@ export async function POST(request, { params }) {
 
     return NextResponse.json({ comment }, { status: 201 });
   } catch (error) {
-    console.error("CREATE_BUG_COMMENT_ERROR:", error);
+    console.error("CREATE_REQ_COMMENT_ERROR:", error);
     return NextResponse.json({ message: "Failed to add comment" }, { status: 500 });
   }
 }

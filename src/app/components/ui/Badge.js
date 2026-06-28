@@ -1,27 +1,25 @@
-const variants = {
-  default: "bg-slate-700/50 text-slate-300 border border-slate-600/30",
-  success: "bg-emerald-500/15 text-emerald-400 border border-emerald-500/20",
-  warning: "bg-amber-500/15 text-amber-400 border border-amber-500/20",
-  danger: "bg-red-500/15 text-red-400 border border-red-500/20",
-  info: "bg-cyan-500/15 text-cyan-400 border border-cyan-500/20",
-};
-
-const sizes = {
-  sm: "px-2 py-0.5 text-xs",
-  md: "px-3 py-1 text-xs",
-};
-
 export default function Badge({
   children,
   variant = "default",
-  size = "sm",
+  size = "md",
   className = "",
 }) {
+  const variants = {
+    default: "bg-slate-700/50 text-slate-300",
+    success: "bg-emerald-500/15 text-emerald-400",
+    warning: "bg-amber-500/15 text-amber-400",
+    danger: "bg-red-500/15 text-red-400",
+    info: "bg-cyan-500/15 text-cyan-400",
+  };
+
+  const sizes = {
+    sm: "px-2 py-0.5 text-[10px]",
+    md: "px-2.5 py-0.5 text-xs",
+  };
+
   return (
     <span
-      className={`rounded-full inline-flex items-center font-medium whitespace-nowrap ${
-        variants[variant] || variants.default
-      } ${sizes[size] || sizes.sm} ${className}`}
+      className={`inline-flex items-center gap-1 rounded-full font-medium ${variants[variant]} ${sizes[size]} ${className}`}
     >
       {children}
     </span>
